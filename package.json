@@ -1,0 +1,29 @@
+{ "name": "unix-pipe",
+  "version": "0.1.0",
+  "description": "Alternate interface to the posix-pipe package. Maybe some day I'll add a fallback for compatibility with other operating systems.",
+  "keywords": [ "pipe", "unix" ],
+
+  "author": "M.K. (https://github.com/mk-pmb)",
+  "homepage": "https://github.com/mk-pmb/unix-pipe-js/#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mk-pmb/unix-pipe-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mk-pmb/unix-pipe-js/issues"
+  },
+  "contributors": [],
+
+  "private": false, "license": "ISC",
+
+  "main": "up.js",
+  "scripts": { "test": "nodejs test.usage.js" },
+  "directories": { "test": "test" },
+
+  "dependencies": {
+  },
+  "devDependencies": { "equal-pmb": "^0.1.6" },
+
+
+  "npm vs. BOM = Unexpected token": "-*- coding: UTF-8 -*-"
+}
