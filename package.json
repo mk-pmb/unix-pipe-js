@@ -1,5 +1,5 @@
 { "name": "unix-pipe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Alternate interface to the posix-pipe package. Maybe some day I'll add a fallback for compatibility with other operating systems.",
   "keywords": [ "pipe", "unix" ],
 
