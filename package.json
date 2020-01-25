@@ -1,5 +1,5 @@
 { "name": "unix-pipe",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Alternate interface to the posix-pipe package. Maybe some day I'll add a fallback for compatibility with other operating systems.",
   "keywords": [ "pipe", "unix" ],
 
@@ -21,6 +21,7 @@
   "directories": { "test": "test" },
 
   "dependencies": {
+    "posix-pipe": "^0.1.4"
   },
   "devDependencies": { "equal-pmb": "^0.1.6" },
 
