@@ -8,7 +8,7 @@ var EX, posixPipe = require('posix-pipe'), fs = require('fs'),
 
 function isNum(x, no) { return ((x === +x) || no); }
 function fail(why) { throw new Error(why); }
-function noOp() { return; }
+function alwaysNull() { return null; }
 function concatIf(a, x) { return (x ? a.concat(x) : a); }
 function bindArrgs(f, o, a) { return f.bind.apply(f, concatIf([o], a)); }
 function isStr(x, no) { return (((typeof x) === 'string') || no); }
@@ -55,7 +55,6 @@ EX.oneStream = function (intendedStreamMode, opt) {
   fds = EX.justFds();
   stm = new Socket({
     fd: fds[sides.ours],
-    allowHalfOpen: true,
     readable: (sides.ours === 'rd'),
     writable: (sides.ours === 'wr'),
   });
@@ -70,6 +69,12 @@ EX.oneStream = function (intendedStreamMode, opt) {
     writable: (sides.peer === 'wr'),
   };
   stm.peerFd = fds.peer;
+
+  if ((!stm.readable) && stm.read) {
+    // Node.js v8.17.0 doesn't understand that { readable: false }
+    // means "no", not even when we .pause the socket.
+    stm.read = alwaysNull;
+  }
 
   if (!opt.keepPeerFd) {
     // As soon as the peer has picked up, usually there's no longer
