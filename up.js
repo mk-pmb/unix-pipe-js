@@ -71,9 +71,11 @@ EX.oneStream = function (intendedStreamMode, opt) {
   };
   stm.peerFd = fds.peer;
 
-  // As soon as the peer has picked up, there's no longer a reason for us
-  // to hold onto the peerFd.
-  stm.once('resume', function discardPeerFd() { stm.discardFd('peer'); });
+  if (!opt.keepPeerFd) {
+    // As soon as the peer has picked up, usually there's no longer
+    // a reason for us to hold onto the peerFd.
+    stm.once('resume', function discardPeerFd() { stm.discardFd('peer'); });
+  }
 
   return stm;
 };
