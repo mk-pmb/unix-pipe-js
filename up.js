@@ -6,6 +6,7 @@ var EX, posixPipe = require('posix-pipe'), fs = require('fs'),
   Socket = require('net').Socket, hndProp = '_handle';
 
 
+function isNum(x, no) { return ((x === +x) || no); }
 function fail(why) { throw new Error(why); }
 function noOp() { return; }
 function concatIf(a, x) { return (x ? a.concat(x) : a); }
@@ -30,50 +31,63 @@ EX.aliasify = function (p) {
 
 EX.justFds = function pipe() { return EX.aliasify(posixPipe.pipe()); };
 
-
-EX.oneStream = function (streamSide, opt) {
-  opt = (opt || false);
-  var stm = streamSide, rawSide, fds, whenDiscarded;
-  if (stm === 'r') { stm = 'rd'; }
-  if (stm === 'rd') { rawSide = 'wr'; }
-  if (stm === 'w') { stm = 'wr'; }
-  if (stm === 'wr') { rawSide = 'rd'; }
-  if (!rawSide) { fail('streamSide must be "r", "rd", "w", or "wr".'); }
-  fds = EX.justFds();
-  stm = new Socket({
-    fd: fds[streamSide],
-    allowHalfOpen: true,
-    readable: (streamSide === 'rd'),
-    writable: (streamSide === 'wr'),
-  });
-  stm.fd = fds[streamSide];
-  stm.peerFd = fds[rawSide];
-  stm.peer = { fd: stm.peerFd,
-    readable: (rawSide === 'rd'),
-    writable: (rawSide === 'wr'),
-    };
-
-  whenDiscarded = str2mthd((opt.whenDiscarded || noOp), console,
-    ['Discarded FD:', stm.peerFd, 'error?:']);
-  function discardPeerFd() {
-    fs.close(stm.peerFd, whenDiscarded);
-    // close(2) (man 2 close) can have errors EBADF, EINTR and EIO.
+function oneStreamDiscardFd(side) {
+  var stm = this, fdNum = null;
+  if (side === 'ours') { fdNum = stm.fd; }
+  if (side === 'peer') { fdNum = stm.peerFd; }
+  if (fdNum === null) { throw new Error('Bad socket side name: ' + side); }
+  if (!isNum(fdNum)) { throw new Error('Bad fd on socket side ' + side); }
+  fs.close(fdNum, function whenDiscarded(err) {
+    // None of the errors are important: According to man 2 close,
+    // close(2) can have just these errors:
     // EBADF = invalid file descriptor = nothing to discard = instant success.
     // EINTR = interrupted by a signal. should be node's problem, not ours.
     // EIO = potential loss of unwritten data. yeah. it's called "discard".
-  }
-  if (stm.writable) {
-    stm.closeDiscardUnwrittenData = discardPeerFd;
-  } else {
-    // If it isn't writable in the first place, we can be reasonably sure
-    // the user won't care about whether any potentially written data
-    // (however they managed to do so) might be discaded, so we can
-    // expose it as just .end() without the disclaimer:
-    stm.end = discardPeerFd;
-  }
+    stm.emit('discardFd', err, { side: side, fdNum: fdNum });
+    stm.emit('discardFd:' + side, err, { side: side, fdNum: fdNum });
+  });
+}
+
+
+EX.oneStream = function (intendedStreamMode, opt) {
+  opt = (opt || false);
+  var sides = EX.oneStream.sides(intendedStreamMode), stm, fds;
+  fds = EX.justFds();
+  stm = new Socket({
+    fd: fds[sides.ours],
+    allowHalfOpen: true,
+    readable: (sides.ours === 'rd'),
+    writable: (sides.ours === 'wr'),
+  });
+  stm.discardFd = oneStreamDiscardFd;
+  fds.ours = fds[sides.ours];
+  stm.fd = fds.ours;
+
+  fds.peer = fds[sides.peer];
+  stm.peer = {
+    fd: fds.peer,
+    readable: (sides.peer === 'rd'),
+    writable: (sides.peer === 'wr'),
+  };
+  stm.peerFd = fds.peer;
+
+  // As soon as the peer has picked up, there's no longer a reason for us
+  // to hold onto the peerFd.
+  stm.once('resume', function discardPeerFd() { stm.discardFd('peer'); });
 
   return stm;
 };
+
+(function () {
+  var otherSide = { rd: 'wr', wr: 'rd' }, aliases = { r: 'rd', w: 'wr' };
+  EX.oneStream.sides = function (ism) {
+    ism = (aliases[ism] || ism);
+    var oth = otherSide[ism];
+    if (!oth) { fail('intendedStreamMode must be "r", "rd", "w", or "wr".'); }
+    return { ours: ism, peer: oth };
+  };
+}());
+
 
 
 
